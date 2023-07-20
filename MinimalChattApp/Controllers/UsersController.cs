@@ -106,12 +106,17 @@ namespace MinimalChattApp.Controllers
             {
                 return BadRequest(new { message = "Invalid Credential" });
             }
-
+            user.Token = GenerateUniqueToken();
+             string GenerateUniqueToken()
+            {
+                return Guid.NewGuid().ToString();
+            }
 
             var HashedPassword = PasswordHash(user.Password);
 
             user.Password = HashedPassword;
             _context.User.Add(user);
+           
             await _context.SaveChangesAsync();
 
             return CreatedAtAction("GetUser", new { id = user.Id }, user);
@@ -149,7 +154,8 @@ namespace MinimalChattApp.Controllers
                     {
                         user.Id,
                         user.Name,
-                        user.Email
+                        user.Email,
+                        user.Token
                     }
                 });
             }
@@ -163,15 +169,16 @@ namespace MinimalChattApp.Controllers
         private string GenerateJwtToken(User user)
         {
             var tokenHandler = new JwtSecurityTokenHandler();
-            string keyString = "ASD123ASRJHIOUICVGTUJIOLKL-JHGJHJHK-HJHGHGK";
-           byte[] key = Encoding.ASCII.GetBytes(keyString);
+            
+          var key = Encoding.ASCII.GetBytes("ASDFGHJKLI_DFGJKLL_BNNMm");
             var tokenDescriptor = new SecurityTokenDescriptor
             {
-                Subject = new ClaimsIdentity(new[]
+                Subject = new ClaimsIdentity(new Claim[]
                 {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.Name),
             new Claim(ClaimTypes.Email, user.Email),
+             new Claim("Token", user.Token)
             // Add any other claims you want to include in the token
         }),
                 Expires = DateTime.UtcNow.AddHours(1), // Set the token expiration time (e.g., 1 hour)
@@ -180,6 +187,7 @@ namespace MinimalChattApp.Controllers
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
+
         }
         [HttpGet("api/users")]
         [Authorize] // Require authentication to access this endpoint
@@ -196,7 +204,8 @@ namespace MinimalChattApp.Controllers
             {
                 id = u.Id,
                 name = u.Name,
-                email = u.Email
+                email = u.Email,
+                token=u.Token
             }));
         }
         // DELETE: api/Users/5
@@ -231,6 +240,7 @@ namespace MinimalChattApp.Controllers
 
             return hashedPassword;
         }
+
 
     }
 }
