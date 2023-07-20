@@ -136,7 +136,7 @@ namespace MinimalChattApp.Controllers
             // Check if the user exists
             if (user == null)
             {
-                return Unauthorized(new { error = "Invalid email or password" });
+                return NotFound(new { error = "Invalid email or password" });
             }
 
             // Verify the provided password against the hashed password

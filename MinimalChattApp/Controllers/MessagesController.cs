@@ -27,10 +27,10 @@ namespace MinimalChattApp.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Message>>> GetMessage()
         {
-          if (_context.Message == null)
-          {
-              return NotFound();
-          }
+            if (_context.Message == null)
+            {
+                return NotFound();
+            }
             return await _context.Message.ToListAsync();
         }
 
@@ -38,10 +38,10 @@ namespace MinimalChattApp.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Message>> GetMessage(int id)
         {
-          if (_context.Message == null)
-          {
-              return NotFound();
-          }
+            if (_context.Message == null)
+            {
+                return NotFound();
+            }
             var message = await _context.Message.FindAsync(id);
 
             if (message == null)
@@ -83,13 +83,13 @@ namespace MinimalChattApp.Controllers
             // Return a 200 OK response indicating the successful edit
             return Ok();
         }
-    
 
-    // POST: api/Messages
-    // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
-    [HttpPost]
+
+        // POST: api/Messages
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPost]
         [Authorize] // Require authentication to access this endpoint
-        public async Task<IActionResult> SendMessage(MessageRequest messageRequest)
+        public async Task<ActionResult<MessageResponse>> SendMessage(MessageRequest messageRequest)
         {
             // Get the sender ID from the authenticated user making the request
             var senderId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
@@ -101,6 +101,12 @@ namespace MinimalChattApp.Controllers
                 return NotFound(new { error = "Receiver user not found." });
             }
 
+            // Validate the incoming message
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             // Create a new Message entity
             var message = new Message
             {
@@ -110,19 +116,30 @@ namespace MinimalChattApp.Controllers
                 Timestamp = DateTime.UtcNow
             };
 
-            // Add the message to the database
-            _context.Message.Add(message);
-            await _context.SaveChangesAsync();
-
-            // Return the message details in the response body
-            return Ok(new
+            try
             {
-                messageId = message.Id,
-                senderId = message.SenderId,
-                receiverId = message.ReceiverId,
-                content = message.Content,
-                timestamp = message.Timestamp
-            });
+                // Add the message to the database
+                _context.Message.Add(message);
+                await _context.SaveChangesAsync();
+
+                // Create the response object
+                var response = new MessageResponse
+                {
+                    MessageId = message.Id,
+                    SenderId = message.SenderId,
+                    ReceiverId = message.ReceiverId,
+                    Content = message.Content,
+                    Timestamp = message.Timestamp
+                };
+
+                // Return the message details in the response body
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                // Return a 400 Bad Request response with the error message
+                return BadRequest(new { error = "Message sending failed due to an error: " + ex.Message });
+            }
         }
     
 

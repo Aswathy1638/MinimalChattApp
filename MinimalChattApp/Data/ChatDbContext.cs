@@ -19,8 +19,9 @@ namespace MinimalChattApp.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>().ToTable("User");
+            modelBuilder.Entity<Message>().ToTable("Message");
             modelBuilder.Entity<Message>()
-            .HasOne(m => m.Sender)
+           .HasOne(m => m.Sender)
             .WithMany()
             .HasForeignKey(m => m.SenderId)
             .OnDelete(DeleteBehavior.Restrict);

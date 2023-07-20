@@ -14,13 +14,13 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddControllers();
 builder.Services.AddDbContext<ChatDbContext>(opt =>
- opt.UseSqlServer(builder.Configuration.GetConnectionString("ChatContext")));
+ opt.UseSqlServer(builder.Configuration.GetConnectionString("ChatDbContext")));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-var key = "your_secret_key_here"; // Replace this with your actual secret key
+var key = "ASDFGHJKLI_DFGJKLL_BNNMm"; // Replace this with your actual secret key
 var keyBytes = Encoding.ASCII.GetBytes(key);
 
 builder.Services.AddAuthentication(options =>
@@ -33,8 +33,8 @@ builder.Services.AddAuthentication(options =>
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = false, // Set to true and provide a valid issuer if needed
-        ValidateAudience = false, // Set to true and provide a valid audience if needed
+        ValidateIssuer = true, // Set to true and provide a valid issuer if needed
+        ValidateAudience = true, // Set to true and provide a valid audience if needed
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
     };
@@ -63,8 +63,9 @@ using (var scope = app.Services.CreateScope())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
