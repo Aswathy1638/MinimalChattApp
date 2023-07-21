@@ -93,33 +93,33 @@ namespace MinimalChattApp.Controllers
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         
         [HttpPost("/api/register")]
-        public async Task<ActionResult<User>> PostUser(User user)
+        public async Task<ActionResult<User>> Register(User model)
         {
-            var email = _context.User.Any(u => u.Email == user.Email);
-
-            if (email)
-            {
-                return Conflict(new { message = "Email exist" });
-            }
-
             if (!ModelState.IsValid)
             {
-                return BadRequest(new { message = "Invalid Credential" });
+                return BadRequest(new { error = "Invalid request data." });
             }
-            user.Token = GenerateUniqueToken();
-             string GenerateUniqueToken()
+
+            // Check if the email is already registered
+            if (_context.User.Any(u => u.Email == model.Email))
             {
-                return Guid.NewGuid().ToString();
+                return Conflict(new { error = "Email is already registered." });
             }
 
-            var HashedPassword = PasswordHash(user.Password);
+            // Create a new User object from the request model
+            var user = new User
+            {
+                Name = model.Name,
+                Email = model.Email,
+                Password = PasswordHash(model.Password)
+            };
 
-            user.Password = HashedPassword;
+            // Add the user to the database
             _context.User.Add(user);
-           
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetUser", new { id = user.Id }, user);
+            // Return the success response with the user information
+            return Ok(user);
         }
         [HttpPost("/api/login")]
         public async Task<IActionResult> Login(LoginRequest loginRequest)
@@ -166,28 +166,26 @@ namespace MinimalChattApp.Controllers
             }
         }
 
+        // Helper method to generate JWT token
         private string GenerateJwtToken(User user)
         {
+            var key = Encoding.ASCII.GetBytes("YOUR_SECRET_KEY_FOR_JWT");
+
             var tokenHandler = new JwtSecurityTokenHandler();
-            
-          var key = Encoding.ASCII.GetBytes("ASDFGHJKLI_DFGJKLL_BNNMm");
             var tokenDescriptor = new SecurityTokenDescriptor
             {
                 Subject = new ClaimsIdentity(new Claim[]
                 {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.Name),
-            new Claim(ClaimTypes.Email, user.Email),
-             new Claim("Token", user.Token)
-            // Add any other claims you want to include in the token
-        }),
-                Expires = DateTime.UtcNow.AddHours(1), // Set the token expiration time (e.g., 1 hour)
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Name, user.Name),
+                    new Claim(ClaimTypes.Email, user.Email)
+                }),
+                Expires = DateTime.UtcNow.AddDays(1), // Token expiration time
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
 
             var token = tokenHandler.CreateToken(tokenDescriptor);
             return tokenHandler.WriteToken(token);
-
         }
         [HttpGet("api/users")]
         [Authorize] // Require authentication to access this endpoint

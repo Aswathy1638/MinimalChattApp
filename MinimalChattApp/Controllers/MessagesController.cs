@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -53,98 +51,89 @@ namespace MinimalChattApp.Controllers
         }
 
         // PUT: api/Messages/5
-        // To protect from o
-        [HttpPut("{messageId}")]
-        [Authorize] // Require authentication to access this endpoint
-        public async Task<IActionResult> EditMessage(int messageId, MessageRequest messageRequest)
+        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
+        [HttpPut("{id}")]
+        public async Task<IActionResult> PutMessage(int id, Message message)
         {
-            // Get the sender ID from the authenticated user making the request
-            var senderId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-
-            // Check if the message exists and belongs to the authenticated user
-            var message = await _context.Message.FindAsync(messageId);
-            if (message == null)
+            if (id != message.Id)
             {
-                return NotFound(new { error = "Message not found." });
+                return BadRequest();
             }
 
-            if (message.SenderId != senderId)
+            _context.Entry(message).State = EntityState.Modified;
+
+            try
             {
-                return Unauthorized(new { error = "You can only edit your own messages." });
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!MessageExists(id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
             }
 
-            // Update the message content with the new content
-            message.Content = messageRequest.Content;
-
-            // Save the changes to the database
-            _context.Message.Update(message);
-            await _context.SaveChangesAsync();
-
-            // Return a 200 OK response indicating the successful edit
-            return Ok();
+            return NoContent();
         }
-
 
         // POST: api/Messages
         // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
-        [Authorize] // Require authentication to access this endpoint
-        public async Task<ActionResult<MessageResponse>> SendMessage(MessageRequest messageRequest)
+        public async Task<ActionResult<Message>> PostMessage(Message message)
         {
-            // Get the sender ID from the authenticated user making the request
-            var senderId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-
-            // Check if the receiver user exists
-            var receiver = await _context.User.FindAsync(messageRequest.ReceiverId);
-            if (receiver == null)
+            if (_context.Message == null)
             {
-                return NotFound(new { error = "Receiver user not found." });
+                return Problem("Entity set 'ChatDbContext.Message'  is null.");
             }
+            _context.Message.Add(message);
+            await _context.SaveChangesAsync();
 
-            // Validate the incoming message
+            return CreatedAtAction("GetMessage", new { id = message.Id }, message);
+        }
+
+
+
+
+        // POST: api/Messages/send
+        // Endpoint to send a new message
+        [HttpPost("send")]
+        public async Task<ActionResult<Message>> SendMessage(Message message)
+        {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                return BadRequest(new { message = "message sending failed due to validation errors." });
             }
 
-            // Create a new Message entity
-            var message = new Message
+            int userId = GetUserId(HttpContext);
+
+            if (userId == -1)
             {
-                SenderId = senderId,
-                ReceiverId = messageRequest.ReceiverId,
-                Content = messageRequest.Content,
-                Timestamp = DateTime.UtcNow
-            };
-
-            try
-            {
-                // Add the message to the database
-                _context.Message.Add(message);
-                await _context.SaveChangesAsync();
-
-                // Create the response object
-                var response = new MessageResponse
-                {
-                    MessageId = message.Id,
-                    SenderId = message.SenderId,
-                    ReceiverId = message.ReceiverId,
-                    Content = message.Content,
-                    Timestamp = message.Timestamp
-                };
-
-                // Return the message details in the response body
-                return Ok(response);
+                return Unauthorized(new { message = "Unauthorized access" });
             }
-            catch (Exception ex)
-            {
-                // Return a 400 Bad Request response with the error message
-                return BadRequest(new { error = "Message sending failed due to an error: " + ex.Message });
-            }
+
+            message.SenderId = userId;
+            message.Timestamp = DateTime.Now;
+
+            _context.Message.Add(message);
+            await _context.SaveChangesAsync();
+
+            return CreatedAtAction("GetMessage", new { id = message.Id }, message);
         }
-    
 
-    // DELETE: api/Messages/5
-    [HttpDelete("{id}")]
+
+
+
+
+
+
+
+        // DELETE: api/Messages/5
+        [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteMessage(int id)
         {
             if (_context.Message == null)
@@ -166,6 +155,17 @@ namespace MinimalChattApp.Controllers
         private bool MessageExists(int id)
         {
             return (_context.Message?.Any(e => e.Id == id)).GetValueOrDefault();
+        }
+
+        private int GetUserId(HttpContext context)
+        {
+            var authorizationHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+
+            var token = authorizationHeader?.Replace("Bearer ", "");
+
+            var user = _context.User.FirstOrDefault(u => u.Token == token);
+
+            return user?.Id ?? -1;
         }
     }
 }

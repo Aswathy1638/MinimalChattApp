@@ -6,39 +6,33 @@ using MinimalChattApp.Data;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddControllers();
 builder.Services.AddRazorPages();
 builder.Services.AddDbContext<ChatDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("ChatDbContext")));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 // Add services to the container.
 
-builder.Services.AddControllers();
-builder.Services.AddDbContext<ChatDbContext>(opt =>
- opt.UseSqlServer(builder.Configuration.GetConnectionString("ChatDbContext")));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-var key = "ASDFGHJKLI_DFGJKLL_BNNMm"; // Replace this with your actual secret key
-var keyBytes = Encoding.ASCII.GetBytes(key);
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
-{
-    options.RequireHttpsMetadata = false; // In production, set this to true for HTTPS
-    options.SaveToken = true;
-    options.TokenValidationParameters = new TokenValidationParameters
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
     {
-        ValidateIssuer = true, // Set to true and provide a valid issuer if needed
-        ValidateAudience = true, // Set to true and provide a valid audience if needed
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(keyBytes),
-    };
-});
+
+        options.RequireHttpsMetadata = false;
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("your_secret_key")) // Replace with your actual secret key
+        };
+    });
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
