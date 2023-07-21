@@ -34,6 +34,8 @@ namespace MinimalChattApp.Data
                 .WithMany()
                 .HasForeignKey(m => m.ReceiverId);
         }
+        
+            public DbSet<MinimalChattApp.Model.Log> Log { get; set; } = default!;
 
     }
     }

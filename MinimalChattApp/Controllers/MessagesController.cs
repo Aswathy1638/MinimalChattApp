@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -86,16 +87,32 @@ namespace MinimalChattApp.Controllers
         [HttpPost]
         public async Task<ActionResult<Message>> PostMessage(Message message)
         {
-            if (_context.Message == null)
+            if (!ModelState.IsValid)
             {
-                return Problem("Entity set 'ChatDbContext.Message'  is null.");
+                return BadRequest(new { message = "message sending failed due to validation errors." });
             }
+
+            var currentUser = HttpContext.User;
+            var userId = currentUser.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            message.SenderId = Convert.ToInt32(userId);
+            message.Timestamp = DateTime.Now;
+
             _context.Message.Add(message);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetMessage", new { id = message.Id }, message);
-        }
+            var messageResponse = new MessageResponse
+            {
+                MessageId = message.Id,
+                SenderId = message.SenderId,
+                ReceiverId = message.ReceiverId,
+                Content = message.Content,
+                Timestamp = message.Timestamp,
+            };
 
+            return Ok(messageResponse);
+
+        }
 
 
 
