@@ -16,8 +16,8 @@ namespace MinimalChattApp.Data
 
         public DbSet<MinimalChattApp.Model.User> User { get; set; }
         public DbSet<MinimalChattApp.Model.Message> Message { get; set; }
-        
-            protected override void OnModelCreating(ModelBuilder modelBuilder)
+        public DbSet<MinimalChattApp.Model.Log> Log { get; set; }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<User>().ToTable("User");
             modelBuilder.Entity<User>().HasIndex(u => u.Email).IsUnique();
@@ -35,7 +35,7 @@ namespace MinimalChattApp.Data
                 .HasForeignKey(m => m.ReceiverId);
         }
         
-            public DbSet<MinimalChattApp.Model.Log> Log { get; set; } = default!;
+      
 
     }
     }

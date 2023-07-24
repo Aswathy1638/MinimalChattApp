@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using MinimalChattApp.Data;
 using System.Text;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Hosting;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
@@ -55,6 +57,9 @@ using (var scope = app.Services.CreateScope())
     // DbInitializer.Initialize(context);
 }
 
+app.UseMiddleware<RequestLoggingMiddleware>();
+
+
 app.UseHttpsRedirection();
 
 
@@ -63,3 +68,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
